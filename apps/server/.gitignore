@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Turbo
+.turbo/
+
+# Environment
+.env.local
+.env.*.local
+
+# Misc
+*.tsbuildinfo
