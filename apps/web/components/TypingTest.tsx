@@ -35,6 +35,7 @@ export default function TypingTest() {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const statsDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const wordsContainerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -107,13 +108,12 @@ export default function TypingTest() {
     }
   }, [typedText, stats.wpm]);
 
-  // Timer effect
+  // Timer effect - only updates time display frequently
   useEffect(() => {
     if (status === "typing" && startTime) {
       timerRef.current = setInterval(() => {
         const elapsed = (Date.now() - startTime) / 1000;
         setCurrentTime(elapsed);
-        setStats(calculateStats(typedText, elapsed));
       }, 100);
     }
 
@@ -122,7 +122,29 @@ export default function TypingTest() {
         clearInterval(timerRef.current);
       }
     };
-  }, [status, startTime, typedText, calculateStats]);
+  }, [status, startTime]);
+
+  // Debounced stats calculation - updates every 300ms instead of every keystroke
+  useEffect(() => {
+    if (status !== "typing" || !startTime) return;
+
+    // Clear previous debounce timer
+    if (statsDebounceRef.current) {
+      clearTimeout(statsDebounceRef.current);
+    }
+
+    // Debounce stats calculation by 300ms
+    statsDebounceRef.current = setTimeout(() => {
+      const elapsed = (Date.now() - startTime) / 1000;
+      setStats(calculateStats(typedText, elapsed));
+    }, 200);
+
+    return () => {
+      if (statsDebounceRef.current) {
+        clearTimeout(statsDebounceRef.current);
+      }
+    };
+  }, [typedText, status, startTime, calculateStats]);
 
   // Handle input change
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,6 +167,9 @@ export default function TypingTest() {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      if (statsDebounceRef.current) {
+        clearTimeout(statsDebounceRef.current);
+      }
       const finalTime = startTime ? (Date.now() - startTime) / 1000 : 0;
       setStats(calculateStats(value, finalTime));
     }
@@ -161,6 +186,14 @@ export default function TypingTest() {
 
   // Reset test
   const reset = () => {
+    // Clear all timers
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    if (statsDebounceRef.current) {
+      clearTimeout(statsDebounceRef.current);
+    }
+    
     setTypedText("");
     setStatus("waiting");
     setStartTime(null);
