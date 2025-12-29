@@ -1,17 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-
-const SAMPLE_TEXT =
-  "The quick brown fox jumps over the lazy dog. Programming is the art of telling a computer what to do through a set of instructions. Every great developer was once a beginner who refused to give up. Practice makes perfect, and consistency is the key to mastering any skill. TypeForge helps you improve your typing speed and accuracy through focused practice sessions."
+import { getRandomParagraph, getNewRandomParagraph } from "../data/paragraphs";
 
 type Status = "waiting" | "typing" | "finished";
 
 export default function TypingTest() {
-  const [text] = useState(SAMPLE_TEXT);
+  const [text, setText] = useState("");
   const [typed, setTyped] = useState("");
   const [status, setStatus] = useState<Status>("waiting");
   const [startTime, setStartTime] = useState<number | null>(null);
   const [time, setTime] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Track correct count incrementally - no for loops needed
   const [correctCount, setCorrectCount] = useState(0);
@@ -20,6 +19,12 @@ export default function TypingTest() {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
+
+  // Initialize random text on client side only to avoid hydration mismatch
+  useEffect(() => {
+    setText(getRandomParagraph());
+    setIsLoaded(true);
+  }, []);
 
   // Derived stats - computed from tracked counts (O(1) - no loops)
   const wpm = time > 0 ? Math.round((correctCount / 5) / (time / 60)) : 0;
@@ -131,6 +136,7 @@ export default function TypingTest() {
   };
 
   const restart = () => {
+    setText(getNewRandomParagraph(text));
     setTyped("");
     setStatus("waiting");
     setStartTime(null);
@@ -155,7 +161,36 @@ export default function TypingTest() {
 
   useEffect(() => {
     inputRef.current?.focus();
-  }, []);
+  }, [isLoaded]);
+
+  // Show loading state until client-side text is loaded
+  if (!isLoaded) {
+    return (
+      <div className="space-y-16">
+        <div className="flex items-center justify-center gap-24">
+          <div className="text-center">
+            <div className="text-7xl font-medium text-main tabular-nums tracking-tight">0</div>
+            <div className="text-sub text-sm mt-3 uppercase tracking-widest">wpm</div>
+          </div>
+          <div className="text-center">
+            <div className="text-7xl font-medium text-sub tabular-nums tracking-tight">100%</div>
+            <div className="text-sub text-sm mt-3 uppercase tracking-widest">acc</div>
+          </div>
+          <div className="text-center">
+            <div className="text-7xl font-medium text-sub tabular-nums tracking-tight">0s</div>
+            <div className="text-sub text-sm mt-3 uppercase tracking-widest">time</div>
+          </div>
+        </div>
+        <div className="relative py-12">
+          <div className="overflow-hidden">
+            <div className="whitespace-nowrap text-4xl leading-loose font-mono text-sub/40">
+              loading...
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-16">
