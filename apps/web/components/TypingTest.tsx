@@ -1,358 +1,342 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import styles from "./TypingTest.module.css";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { getRandomParagraph, getNewRandomParagraph } from "../data/paragraphs";
 
-// Static paragraph for now - we'll add more configuration later
-const SAMPLE_TEXT =
-  "The quick brown fox jumps over the lazy dog. Programming is the art of telling a computer what to do through a set of instructions. Every great developer was once a beginner who refused to give up. Practice makes perfect, and consistency is the key to mastering any skill. TypeForge helps you improve your typing speed and accuracy through focused practice sessions.";
-
-interface Stats {
-  wpm: number;
-  rawWpm: number;
-  accuracy: number;
-  correctChars: number;
-  incorrectChars: number;
-  totalChars: number;
-  time: number;
-}
-
-type TestStatus = "waiting" | "typing" | "finished";
+type Status = "waiting" | "typing" | "finished";
 
 export default function TypingTest() {
-  const [text] = useState(SAMPLE_TEXT);
-  const [typedText, setTypedText] = useState("");
-  const [status, setStatus] = useState<TestStatus>("waiting");
+  const [text, setText] = useState("");
+  const [typed, setTyped] = useState("");
+  const [status, setStatus] = useState<Status>("waiting");
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [stats, setStats] = useState<Stats>({
-    wpm: 0,
-    rawWpm: 0,
-    accuracy: 100,
-    correctChars: 0,
-    incorrectChars: 0,
-    totalChars: 0,
-    time: 0,
-  });
+  const [time, setTime] = useState(0);
+  const [isFocused, setIsFocused] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Track correct count incrementally - no for loops needed
+  const [correctCount, setCorrectCount] = useState(0);
+  const [errorCount, setErrorCount] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const statsDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  const wordsContainerRef = useRef<HTMLDivElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
 
-  // Calculate stats
-  const calculateStats = useCallback(
-    (typed: string, elapsedSeconds: number): Stats => {
-      let correctChars = 0;
-      let incorrectChars = 0;
-
-      for (let i = 0; i < typed.length; i++) {
-        if (typed[i] === text[i]) {
-          correctChars++;
-        } else {
-          incorrectChars++;
-        }
-      }
-
-      const totalChars = typed.length;
-      const accuracy =
-        totalChars > 0 ? Math.round((correctChars / totalChars) * 100) : 100;
-
-      // WPM calculation: (characters / 5) / minutes
-      // Standard word = 5 characters
-      const minutes = elapsedSeconds / 60;
-      const rawWpm = minutes > 0 ? Math.round(totalChars / 5 / minutes) : 0;
-      const wpm = minutes > 0 ? Math.round(correctChars / 5 / minutes) : 0;
-
-      return {
-        wpm,
-        rawWpm,
-        accuracy,
-        correctChars,
-        incorrectChars,
-        totalChars,
-        time: elapsedSeconds,
-      };
-    },
-    [text]
-  );
-
-  // Smooth scroll - keep current character centered/focused
+  // Initialize random text on client side only to avoid hydration mismatch
   useEffect(() => {
-    if (!wordsContainerRef.current || !wrapperRef.current) return;
+    setText(getRandomParagraph());
+    setIsLoaded(true);
+  }, []);
 
-    const container = wordsContainerRef.current;
-    const wrapper = wrapperRef.current;
+  // Derived stats - computed from tracked counts (O(1) - no loops)
+  const wpm = time > 0 ? Math.round((correctCount / 5) / (time / 60)) : 0;
+  const accuracy = typed.length > 0 ? Math.round((correctCount / typed.length) * 100) : 100;
 
-    // Find the current character span
-    const chars = container.querySelectorAll("span");
-    const currentCharIndex = typedText.length;
-    const currentChar = chars[currentCharIndex] as HTMLElement;
+  // Find the start of current word - O(1) using lastIndexOf instead of loop
+  const getWordBoundary = useCallback((position: number): number => {
+    if (position === 0) return 0;
+    const lastSpace = text.lastIndexOf(" ", position - 1);
+    return lastSpace === -1 ? 0 : lastSpace + 1;
+  }, [text]);
 
-    if (currentChar) {
-      const wrapperWidth = wrapper.clientWidth;
-      const charOffsetLeft = currentChar.offsetLeft;
-      const charWidth = currentChar.offsetWidth;
-
-      // Keep the current character at ~30% from the left (focused position)
-      const focusPosition = wrapperWidth * 0.3;
-      const scrollAmount = charOffsetLeft - focusPosition + charWidth / 2;
-
-      // Calculate transition speed based on WPM (faster typing = faster scroll)
-      // Base: 150ms, faster at higher WPM
-      const baseSpeed = 150;
-      const wpmFactor = Math.max(1, stats.wpm / 60); // Normalize around 60 WPM
-      const transitionSpeed = Math.max(50, baseSpeed / wpmFactor);
-
-      container.style.transition = `transform ${transitionSpeed}ms ease-out`;
-      container.style.transform = `translateX(-${Math.max(0, scrollAmount)}px)`;
-    }
-  }, [typedText, stats.wpm]);
-
-  // Timer effect - only updates time display frequently
+  // Timer - only updates time, stats are derived
   useEffect(() => {
+    let interval: NodeJS.Timeout;
     if (status === "typing" && startTime) {
-      timerRef.current = setInterval(() => {
-        const elapsed = (Date.now() - startTime) / 1000;
-        setCurrentTime(elapsed);
+      interval = setInterval(() => {
+        setTime((Date.now() - startTime) / 1000);
       }, 100);
     }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
+    return () => clearInterval(interval);
   }, [status, startTime]);
 
-  // Debounced stats calculation - updates every 300ms instead of every keystroke
+  // Scroll text
   useEffect(() => {
-    if (status !== "typing" || !startTime) return;
+    if (!textRef.current || !containerRef.current) return;
 
-    // Clear previous debounce timer
-    if (statsDebounceRef.current) {
-      clearTimeout(statsDebounceRef.current);
+    const chars = textRef.current.querySelectorAll("span");
+    const currentChar = chars[typed.length] as HTMLElement;
+
+    if (currentChar) {
+      const containerWidth = containerRef.current.clientWidth;
+      const charLeft = currentChar.offsetLeft;
+      const scrollTo = charLeft - containerWidth * 0.35;
+      textRef.current.style.transform = `translateX(-${Math.max(0, scrollTo)}px)`;
     }
+  }, [typed]);
 
-    // Debounce stats calculation by 300ms
-    statsDebounceRef.current = setTimeout(() => {
-      const elapsed = (Date.now() - startTime) / 1000;
-      setStats(calculateStats(typedText, elapsed));
-    }, 200);
-
-    return () => {
-      if (statsDebounceRef.current) {
-        clearTimeout(statsDebounceRef.current);
-      }
-    };
-  }, [typedText, status, startTime, calculateStats]);
-
-  // Handle input change
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const newValue = e.target.value;
+    const oldLength = typed.length;
+    const newLength = newValue.length;
 
-    // Start timer on first keystroke
-    if (status === "waiting" && value.length > 0) {
+    // Start typing
+    if (status === "waiting" && newLength > 0) {
       setStatus("typing");
       setStartTime(Date.now());
     }
 
-    // Don't allow typing beyond the text length
-    if (value.length > text.length) return;
+    // Prevent typing beyond text
+    if (newLength > text.length) return;
 
-    setTypedText(value);
+    // Handle backspace - restrict to current word only
+    if (newLength < oldLength) {
+      const wordBoundary = getWordBoundary(oldLength);
+      
+      // Can't delete past the start of current word
+      if (newLength < wordBoundary) {
+        return; // Block the deletion
+      }
 
-    // Check if finished
-    if (value.length === text.length) {
-      setStatus("finished");
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
+      // Update counts for deleted characters
+      const deletedChar = typed[oldLength - 1];
+      const expectedChar = text[oldLength - 1];
+      
+      if (deletedChar === expectedChar) {
+        setCorrectCount(prev => prev - 1);
+      } else {
+        setErrorCount(prev => prev - 1);
       }
-      if (statsDebounceRef.current) {
-        clearTimeout(statsDebounceRef.current);
+      
+      setTyped(newValue);
+      return;
+    }
+
+    // Handle new character typed
+    if (newLength > oldLength) {
+      const newChar = newValue[newLength - 1];
+      const expectedChar = text[newLength - 1];
+
+      if (newChar === expectedChar) {
+        setCorrectCount(prev => prev + 1);
+      } else {
+        setErrorCount(prev => prev + 1);
       }
-      const finalTime = startTime ? (Date.now() - startTime) / 1000 : 0;
-      setStats(calculateStats(value, finalTime));
+
+      setTyped(newValue);
+
+      // Check if finished
+      if (newLength === text.length) {
+        setStatus("finished");
+      }
     }
   };
 
-  // Handle key events for special keys
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Prevent tab from moving focus
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Tab") {
       e.preventDefault();
-      reset();
+      restart();
+    }
+
+    // Also handle Backspace to prevent default if at word boundary
+    if (e.key === "Backspace") {
+      const wordBoundary = getWordBoundary(typed.length);
+      if (typed.length <= wordBoundary) {
+        e.preventDefault();
+      }
     }
   };
 
-  // Reset test
-  const reset = () => {
-    // Clear all timers
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    if (statsDebounceRef.current) {
-      clearTimeout(statsDebounceRef.current);
-    }
-    
-    setTypedText("");
+  const restart = () => {
+    setText(getNewRandomParagraph(text));
+    setTyped("");
     setStatus("waiting");
     setStartTime(null);
-    setCurrentTime(0);
-    setStats({
-      wpm: 0,
-      rawWpm: 0,
-      accuracy: 100,
-      correctChars: 0,
-      incorrectChars: 0,
-      totalChars: 0,
-      time: 0,
-    });
-    // Reset scroll position
-    if (wordsContainerRef.current) {
-      wordsContainerRef.current.style.transition = "none";
-      wordsContainerRef.current.style.transform = "translateX(0)";
+    setTime(0);
+    setCorrectCount(0);
+    setErrorCount(0);
+    setIsFocused(false);
+    if (textRef.current) {
+      textRef.current.style.transform = "translateX(0)";
     }
     inputRef.current?.focus();
   };
 
-  // Focus input on mount and click
+  const handleClick = () => {
+    setIsFocused(true);
+    inputRef.current?.focus();
+  };
+
+  const handleBlur = () => {
+    if (status === "waiting") setIsFocused(false);
+  };
+
   useEffect(() => {
     inputRef.current?.focus();
-  }, []);
+  }, [isLoaded]);
 
-  const handleContainerClick = () => {
-    inputRef.current?.focus();
-  };
-
-  // Render characters with highlighting
-  const renderText = () => {
-    return text.split("").map((char, index) => {
-      let className = styles.char;
-      const isCurrent = index === typedText.length;
-
-      if (index < typedText.length) {
-        if (typedText[index] === char) {
-          className += ` ${styles.correct}`;
-        } else {
-          className += ` ${styles.incorrect}`;
-        }
-      } else if (isCurrent) {
-        className += ` ${styles.current}`;
-      }
-
-      // Handle space character display
-      const displayChar = char === " " ? "\u00A0" : char;
-
-      return (
-        <span key={index} className={className}>
-          {displayChar}
-        </span>
-      );
-    });
-  };
-
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
+  // Show loading state until client-side text is loaded
+  if (!isLoaded) {
+    return (
+      <div className="space-y-16">
+        <div className="flex items-center justify-center gap-24">
+          <div className="text-center">
+            <div className="text-7xl font-medium text-main tabular-nums tracking-tight">0</div>
+            <div className="text-sub text-sm mt-3 uppercase tracking-widest">wpm</div>
+          </div>
+          <div className="text-center">
+            <div className="text-7xl font-medium text-sub tabular-nums tracking-tight">100%</div>
+            <div className="text-sub text-sm mt-3 uppercase tracking-widest">acc</div>
+          </div>
+          <div className="text-center">
+            <div className="text-7xl font-medium text-sub tabular-nums tracking-tight">0s</div>
+            <div className="text-sub text-sm mt-3 uppercase tracking-widest">time</div>
+          </div>
+        </div>
+        <div className="relative py-12">
+          <div className="overflow-hidden">
+            <div className="whitespace-nowrap text-4xl leading-loose font-mono text-sub/40">
+              loading...
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={styles.container}>
-      {/* Stats bar */}
-      <div className={styles.statsBar}>
-        <div className={styles.stat}>
-          <span className={styles.statValue}>{stats.wpm}</span>
-          <span className={styles.statLabel}>wpm</span>
+    <div className="space-y-16">
+      {/* Stats */}
+      <div className="flex items-center justify-center gap-24">
+        <div className="text-center">
+          <div className="text-7xl font-medium text-main tabular-nums tracking-tight">
+            {wpm}
+          </div>
+          <div className="text-sub text-sm mt-3 uppercase tracking-widest">
+            wpm
+          </div>
         </div>
-        <div className={styles.stat}>
-          <span className={styles.statValue}>{stats.accuracy}%</span>
-          <span className={styles.statLabel}>accuracy</span>
+        <div className="text-center">
+          <div className="text-7xl font-medium text-sub tabular-nums tracking-tight">
+            {accuracy}%
+          </div>
+          <div className="text-sub text-sm mt-3 uppercase tracking-widest">
+            acc
+          </div>
         </div>
-        <div className={styles.stat}>
-          <span className={styles.statValue}>{formatTime(currentTime)}</span>
-          <span className={styles.statLabel}>time</span>
-        </div>
-        <div className={styles.stat}>
-          <span className={styles.statValue}>
-            {typedText.length}/{text.length}
-          </span>
-          <span className={styles.statLabel}>chars</span>
+        <div className="text-center">
+          <div className="text-7xl font-medium text-sub tabular-nums tracking-tight">
+            {Math.floor(time)}s
+          </div>
+          <div className="text-sub text-sm mt-3 uppercase tracking-widest">
+            time
+          </div>
         </div>
       </div>
 
-      {/* Typing area */}
-      <div className={styles.typingArea} onClick={handleContainerClick}>
-        <div ref={wrapperRef} className={styles.textDisplayWrapper}>
-          {/* Focus indicator line - shows where user should focus */}
-          <div className={styles.focusLine} />
-          <div ref={wordsContainerRef} className={styles.textDisplay}>
-            {renderText()}
+      {/* Typing Area - hide when finished */}
+      {status !== "finished" && (
+        <div
+          ref={containerRef}
+          onClick={handleClick}
+          className="relative py-12 cursor-text"
+        >
+          <input
+            ref={inputRef}
+            type="text"
+            value={typed}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            className="absolute opacity-0 pointer-events-none"
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+
+          <div className="overflow-hidden">
+            <div
+              ref={textRef}
+              className="whitespace-nowrap text-4xl leading-loose transition-transform duration-150 ease-out font-mono"
+              style={{ letterSpacing: "0.025em" }}
+            >
+              {text.split("").map((char, i) => {
+                let color = "text-sub/40";
+                if (i < typed.length) {
+                  color = typed[i] === char ? "text-correct" : "text-error";
+                } else if (i === typed.length) {
+                  color = "text-main";
+                }
+
+                return (
+                  <span key={i} className={`relative ${color}`}>
+                    {char === " " ? "\u00A0" : char}
+                    {i === typed.length && (
+                      <span className="absolute left-0 top-0 h-full w-0.5 bg-main animate-pulse" />
+                    )}
+                  </span>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Hidden input */}
-        <input
-          ref={inputRef}
-          type="text"
-          value={typedText}
-          onChange={handleInput}
-          onKeyDown={handleKeyDown}
-          className={styles.hiddenInput}
-          autoComplete="off"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          disabled={status === "finished"}
-        />
-
-        {/* Click to focus overlay - semi-transparent to show text */}
-        {status === "waiting" && (
-          <div className={styles.overlay} onClick={handleContainerClick}>
-            <p>Click here or start typing...</p>
-          </div>
-        )}
-      </div>
-
-      {/* Results */}
-      {status === "finished" && (
-        <div className={styles.results}>
-          <h2>Test Complete!</h2>
-          <div className={styles.resultsGrid}>
-            <div className={styles.resultItem}>
-              <span className={styles.resultValue}>{stats.wpm}</span>
-              <span className={styles.resultLabel}>WPM</span>
-            </div>
-            <div className={styles.resultItem}>
-              <span className={styles.resultValue}>{stats.rawWpm}</span>
-              <span className={styles.resultLabel}>Raw WPM</span>
-            </div>
-            <div className={styles.resultItem}>
-              <span className={styles.resultValue}>{stats.accuracy}%</span>
-              <span className={styles.resultLabel}>Accuracy</span>
-            </div>
-            <div className={styles.resultItem}>
-              <span className={styles.resultValue}>
-                {formatTime(stats.time)}
+          {/* Blur overlay */}
+          {status === "waiting" && !isFocused && (
+            <div
+              onClick={handleClick}
+              className="absolute inset-0 flex items-center justify-center backdrop-blur-[2px] bg-bg/50 cursor-pointer"
+            >
+              <span className="text-sub text-lg tracking-wide">
+                click to start typing
               </span>
-              <span className={styles.resultLabel}>Time</span>
             </div>
-            <div className={styles.resultItem}>
-              <span className={styles.resultValue}>{stats.correctChars}</span>
-              <span className={styles.resultLabel}>Correct</span>
-            </div>
-            <div className={styles.resultItem}>
-              <span className={styles.resultValue}>{stats.incorrectChars}</span>
-              <span className={styles.resultLabel}>Errors</span>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* Reset hint */}
-      <div className={styles.hint}>
-        Press <kbd>Tab</kbd> to restart
-      </div>
+      {/* Results */}
+      {status === "finished" && (
+        <div className="text-center space-y-12 pt-8">
+          <div className="space-y-3">
+            <div className="text-9xl font-medium text-main tabular-nums tracking-tight">
+              {wpm}
+            </div>
+            <div className="text-sub text-lg tracking-wide">
+              words per minute
+            </div>
+          </div>
+
+          <div className="flex justify-center gap-20 text-sub">
+            <div>
+              <span className="text-text text-3xl tabular-nums">
+                {accuracy}%
+              </span>
+              <span className="ml-3 tracking-wide">accuracy</span>
+            </div>
+            <div>
+              <span className="text-text text-3xl tabular-nums">
+                {Math.round(time)}s
+              </span>
+              <span className="ml-3 tracking-wide">time</span>
+            </div>
+            <div>
+              <span className="text-correct text-3xl tabular-nums">
+                {correctCount}
+              </span>
+              <span className="ml-3 tracking-wide">correct</span>
+            </div>
+            <div>
+              <span className="text-error text-3xl tabular-nums">
+                {errorCount}
+              </span>
+              <span className="ml-3 tracking-wide">errors</span>
+            </div>
+          </div>
+
+          <button
+            onClick={restart}
+            className="px-10 py-4 bg-main text-bg font-medium tracking-wide rounded-lg hover:opacity-90 transition-opacity"
+          >
+            try again
+          </button>
+        </div>
+      )}
+
+      {/* Hint */}
+      {status !== "finished" && (
+        <div className="text-center text-sub/50 text-sm tracking-wide">
+          press <span className="text-main">tab</span> to restart
+        </div>
+      )}
     </div>
   );
 }

@@ -1,19 +1,17 @@
 import Head from "next/head";
 import TypingTest from "../components/TypingTest";
-import styles from "./index.module.css";
 
 export default function Home() {
   return (
     <>
       <Head>
-        <title>TypeForge - Typing Speed Test</title>
-        <meta name="description" content="Practice and improve your typing speed with TypeForge" />
+        <title>TypeForge</title>
+        <meta name="description" content="A minimalist typing speed test" />
       </Head>
-      <main className={styles.main}>
-        <header className={styles.header}>
-          <h1 className={styles.logo}>⌨️ TypeForge</h1>
-        </header>
-        <TypingTest />
+      <main className="min-h-screen flex items-center justify-center p-8">
+        <div className="w-full max-w-4xl">
+          <TypingTest />
+        </div>
       </main>
     </>
   );
