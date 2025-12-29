@@ -21,20 +21,15 @@ export default function TypingTest() {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
 
-  // Derived stats - computed from tracked counts
+  // Derived stats - computed from tracked counts (O(1) - no loops)
   const wpm = time > 0 ? Math.round((correctCount / 5) / (time / 60)) : 0;
   const accuracy = typed.length > 0 ? Math.round((correctCount / typed.length) * 100) : 100;
 
-  // Find the start of current word (last space before current position)
+  // Find the start of current word - O(1) using lastIndexOf instead of loop
   const getWordBoundary = useCallback((position: number): number => {
-    // Find the last space before or at current position
-    let boundary = 0;
-    for (let i = 0; i < position; i++) {
-      if (text[i] === " ") {
-        boundary = i + 1; // Position after the space
-      }
-    }
-    return boundary;
+    if (position === 0) return 0;
+    const lastSpace = text.lastIndexOf(" ", position - 1);
+    return lastSpace === -1 ? 0 : lastSpace + 1;
   }, [text]);
 
   // Timer - only updates time, stats are derived
