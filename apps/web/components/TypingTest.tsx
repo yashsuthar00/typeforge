@@ -1,48 +1,52 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const SAMPLE_TEXT =
-  "the quick brown fox jumps over the lazy dog. programming is the art of telling a computer what to do. practice makes perfect and consistency is key.";
+  "The quick brown fox jumps over the lazy dog. Programming is the art of telling a computer what to do through a set of instructions. Every great developer was once a beginner who refused to give up. Practice makes perfect, and consistency is the key to mastering any skill. TypeForge helps you improve your typing speed and accuracy through focused practice sessions."
 
 type Status = "waiting" | "typing" | "finished";
 
 export default function TypingTest() {
   const [text] = useState(SAMPLE_TEXT);
   const [typed, setTyped] = useState("");
-  const [status, setStatus] = useState<Status>("waiting" as Status);
+  const [status, setStatus] = useState<Status>("waiting");
   const [startTime, setStartTime] = useState<number | null>(null);
   const [time, setTime] = useState(0);
-  const [wpm, setWpm] = useState(0);
-  const [accuracy, setAccuracy] = useState(100);
   const [isFocused, setIsFocused] = useState(false);
+
+  // Track correct count incrementally - no for loops needed
+  const [correctCount, setCorrectCount] = useState(0);
+  const [errorCount, setErrorCount] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
 
-  // Timer
+  // Derived stats - computed from tracked counts
+  const wpm = time > 0 ? Math.round((correctCount / 5) / (time / 60)) : 0;
+  const accuracy = typed.length > 0 ? Math.round((correctCount / typed.length) * 100) : 100;
+
+  // Find the start of current word (last space before current position)
+  const getWordBoundary = useCallback((position: number): number => {
+    // Find the last space before or at current position
+    let boundary = 0;
+    for (let i = 0; i < position; i++) {
+      if (text[i] === " ") {
+        boundary = i + 1; // Position after the space
+      }
+    }
+    return boundary;
+  }, [text]);
+
+  // Timer - only updates time, stats are derived
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (status === "typing" && startTime) {
       interval = setInterval(() => {
-        const elapsed = (Date.now() - startTime) / 1000;
-        setTime(elapsed);
-
-        // Calculate WPM
-        let correct = 0;
-        for (let i = 0; i < typed.length; i++) {
-          if (typed[i] === text[i]) correct++;
-        }
-        const minutes = elapsed / 60;
-        if (minutes > 0) {
-          setWpm(Math.round(correct / 5 / minutes));
-          setAccuracy(
-            typed.length > 0 ? Math.round((correct / typed.length) * 100) : 100
-          );
-        }
+        setTime((Date.now() - startTime) / 1000);
       }, 100);
     }
     return () => clearInterval(interval);
-  }, [status, startTime, typed, text]);
+  }, [status, startTime]);
 
   // Scroll text
   useEffect(() => {
@@ -55,35 +59,64 @@ export default function TypingTest() {
       const containerWidth = containerRef.current.clientWidth;
       const charLeft = currentChar.offsetLeft;
       const scrollTo = charLeft - containerWidth * 0.35;
-      textRef.current.style.transform = `translateX(-${Math.max(
-        0,
-        scrollTo
-      )}px)`;
+      textRef.current.style.transform = `translateX(-${Math.max(0, scrollTo)}px)`;
     }
   }, [typed]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const newValue = e.target.value;
+    const oldLength = typed.length;
+    const newLength = newValue.length;
 
-    if (status === "waiting" && value.length > 0) {
+    // Start typing
+    if (status === "waiting" && newLength > 0) {
       setStatus("typing");
       setStartTime(Date.now());
     }
 
-    if (value.length > text.length) return;
-    setTyped(value);
+    // Prevent typing beyond text
+    if (newLength > text.length) return;
 
-    if (value.length === text.length) {
-      setStatus("finished");
-      // Final calculation
-      let correct = 0;
-      for (let i = 0; i < value.length; i++) {
-        if (value[i] === text[i]) correct++;
+    // Handle backspace - restrict to current word only
+    if (newLength < oldLength) {
+      const wordBoundary = getWordBoundary(oldLength);
+      
+      // Can't delete past the start of current word
+      if (newLength < wordBoundary) {
+        return; // Block the deletion
       }
-      const elapsed = startTime ? (Date.now() - startTime) / 1000 : 0;
-      const minutes = elapsed / 60;
-      setWpm(Math.round(correct / 5 / minutes));
-      setAccuracy(Math.round((correct / value.length) * 100));
+
+      // Update counts for deleted characters
+      const deletedChar = typed[oldLength - 1];
+      const expectedChar = text[oldLength - 1];
+      
+      if (deletedChar === expectedChar) {
+        setCorrectCount(prev => prev - 1);
+      } else {
+        setErrorCount(prev => prev - 1);
+      }
+      
+      setTyped(newValue);
+      return;
+    }
+
+    // Handle new character typed
+    if (newLength > oldLength) {
+      const newChar = newValue[newLength - 1];
+      const expectedChar = text[newLength - 1];
+
+      if (newChar === expectedChar) {
+        setCorrectCount(prev => prev + 1);
+      } else {
+        setErrorCount(prev => prev + 1);
+      }
+
+      setTyped(newValue);
+
+      // Check if finished
+      if (newLength === text.length) {
+        setStatus("finished");
+      }
     }
   };
 
@@ -92,6 +125,14 @@ export default function TypingTest() {
       e.preventDefault();
       restart();
     }
+
+    // Also handle Backspace to prevent default if at word boundary
+    if (e.key === "Backspace") {
+      const wordBoundary = getWordBoundary(typed.length);
+      if (typed.length <= wordBoundary) {
+        e.preventDefault();
+      }
+    }
   };
 
   const restart = () => {
@@ -99,8 +140,8 @@ export default function TypingTest() {
     setStatus("waiting");
     setStartTime(null);
     setTime(0);
-    setWpm(0);
-    setAccuracy(100);
+    setCorrectCount(0);
+    setErrorCount(0);
     setIsFocused(false);
     if (textRef.current) {
       textRef.current.style.transform = "translateX(0)";
@@ -190,7 +231,7 @@ export default function TypingTest() {
                   <span key={i} className={`relative ${color}`}>
                     {char === " " ? "\u00A0" : char}
                     {i === typed.length && (
-                      <span className="absolute left-0 top-0 h-full w-[3px] bg-main animate-pulse" />
+                      <span className="absolute left-0 top-0 h-full w-0.5 bg-main animate-pulse" />
                     )}
                   </span>
                 );
@@ -236,6 +277,18 @@ export default function TypingTest() {
                 {Math.round(time)}s
               </span>
               <span className="ml-3 tracking-wide">time</span>
+            </div>
+            <div>
+              <span className="text-correct text-3xl tabular-nums">
+                {correctCount}
+              </span>
+              <span className="ml-3 tracking-wide">correct</span>
+            </div>
+            <div>
+              <span className="text-error text-3xl tabular-nums">
+                {errorCount}
+              </span>
+              <span className="ml-3 tracking-wide">errors</span>
             </div>
           </div>
 
