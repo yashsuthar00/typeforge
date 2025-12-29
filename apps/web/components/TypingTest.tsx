@@ -21,6 +21,7 @@ export default function TypingTest() {
   const [text] = useState(SAMPLE_TEXT);
   const [typedText, setTypedText] = useState("");
   const [status, setStatus] = useState<TestStatus>("waiting");
+  const [isFocused, setIsFocused] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [stats, setStats] = useState<Stats>({
@@ -212,6 +213,7 @@ export default function TypingTest() {
       wordsContainerRef.current.style.transition = "none";
       wordsContainerRef.current.style.transform = "translateX(0)";
     }
+    setIsFocused(false);
     inputRef.current?.focus();
   };
 
@@ -221,7 +223,15 @@ export default function TypingTest() {
   }, []);
 
   const handleContainerClick = () => {
+    setIsFocused(true);
     inputRef.current?.focus();
+  };
+
+  // Handle blur - show overlay again if not typing
+  const handleBlur = () => {
+    if (status === "waiting") {
+      setIsFocused(false);
+    }
   };
 
   // Render characters with highlighting
@@ -298,6 +308,7 @@ export default function TypingTest() {
           value={typedText}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
           className={styles.hiddenInput}
           autoComplete="off"
           autoCapitalize="off"
@@ -306,8 +317,8 @@ export default function TypingTest() {
           disabled={status === "finished"}
         />
 
-        {/* Click to focus overlay - semi-transparent to show text */}
-        {status === "waiting" && (
+        {/* Click to focus overlay - only show when not focused and waiting */}
+        {status === "waiting" && !isFocused && (
           <div className={styles.overlay} onClick={handleContainerClick}>
             <p>Click here or start typing...</p>
           </div>
