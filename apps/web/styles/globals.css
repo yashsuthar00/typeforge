@@ -1,0 +1,59 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Lexend:wght@300;400;500;600&display=swap');
+
+@theme {
+  /* Colors */
+  --color-bg: #0a0a0f;
+  --color-surface: #151520;
+  --color-main: #e2b714;
+  --color-text: #d4d4d8;
+  --color-sub: #71717a;
+  --color-correct: #10b981;
+  --color-error: #ef4444;
+  
+  /* Fonts */
+  --font-family-sans: 'Lexend', -apple-system, system-ui, sans-serif;
+  --font-family-mono: 'Geist Mono', 'JetBrains Mono', monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family-sans);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:focus {
+  outline: none;
+}
+
+::selection {
+  background: var(--color-main);
+  color: var(--color-bg);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-sub);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text);
+}
