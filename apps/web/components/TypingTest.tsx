@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { getRandomParagraph, getNewRandomParagraph } from "../data/paragraphs";
 
 type Status = "waiting" | "typing" | "finished";
@@ -12,10 +12,6 @@ export default function TypingTest() {
   const [isFocused, setIsFocused] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Track correct count incrementally - no for loops needed
-  const [correctCount, setCorrectCount] = useState(0);
-  const [errorCount, setErrorCount] = useState(0);
-
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -26,7 +22,23 @@ export default function TypingTest() {
     setIsLoaded(true);
   }, []);
 
-  // Derived stats - computed from tracked counts (O(1) - no loops)
+  // Compute correct and error counts from typed string - handles bulk operations correctly
+  const { correctCount, errorCount } = useMemo(() => {
+    let correct = 0;
+    let errors = 0;
+    
+    for (let i = 0; i < typed.length; i++) {
+      if (typed[i] === text[i]) {
+        correct++;
+      } else {
+        errors++;
+      }
+    }
+    
+    return { correctCount: correct, errorCount: errors };
+  }, [typed, text]);
+
+  // Derived stats - computed from memoized counts
   const wpm = time > 0 ? Math.round((correctCount / 5) / (time / 60)) : 0;
   const accuracy = typed.length > 0 ? Math.round((correctCount / typed.length) * 100) : 100;
 
@@ -86,31 +98,12 @@ export default function TypingTest() {
         return; // Block the deletion
       }
 
-      // Update counts for deleted characters
-      const deletedChar = typed[oldLength - 1];
-      const expectedChar = text[oldLength - 1];
-      
-      if (deletedChar === expectedChar) {
-        setCorrectCount(prev => prev - 1);
-      } else {
-        setErrorCount(prev => prev - 1);
-      }
-      
       setTyped(newValue);
       return;
     }
 
-    // Handle new character typed
+    // Handle new character(s) typed
     if (newLength > oldLength) {
-      const newChar = newValue[newLength - 1];
-      const expectedChar = text[newLength - 1];
-
-      if (newChar === expectedChar) {
-        setCorrectCount(prev => prev + 1);
-      } else {
-        setErrorCount(prev => prev + 1);
-      }
-
       setTyped(newValue);
 
       // Check if finished
@@ -118,6 +111,11 @@ export default function TypingTest() {
         setStatus("finished");
       }
     }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    // Prevent pasting
+    e.preventDefault();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -141,8 +139,6 @@ export default function TypingTest() {
     setStatus("waiting");
     setStartTime(null);
     setTime(0);
-    setCorrectCount(0);
-    setErrorCount(0);
     setIsFocused(false);
     if (textRef.current) {
       textRef.current.style.transform = "translateX(0)";
@@ -235,6 +231,7 @@ export default function TypingTest() {
             value={typed}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             onBlur={handleBlur}
             className="absolute opacity-0 pointer-events-none"
             autoComplete="off"
