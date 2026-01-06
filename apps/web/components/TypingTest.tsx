@@ -11,10 +11,14 @@ export default function TypingTest() {
   const [time, setTime] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isAFK, setIsAFK] = useState(false);
+  const [pausedTime, setPausedTime] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
+  const lastTypingTimeRef = useRef<number>(Date.now());
+  const afkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize random text on client side only to avoid hydration mismatch
   useEffect(() => {
@@ -77,16 +81,39 @@ export default function TypingTest() {
     return lastSpace === -1 ? 0 : lastSpace + 1;
   }, [text]);
 
-  // Timer - only updates time, stats are derived
+  // Timer - only updates time, stats are derived (pauses when AFK)
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (status === "typing" && startTime) {
+    if (status === "typing" && startTime && !isAFK) {
       interval = setInterval(() => {
-        setTime((Date.now() - startTime) / 1000);
+        setTime((Date.now() - startTime - pausedTime) / 1000);
       }, 100);
     }
     return () => clearInterval(interval);
-  }, [status, startTime]);
+  }, [status, startTime, isAFK, pausedTime]);
+
+  // AFK Detection - pause after 3 seconds of inactivity
+  useEffect(() => {
+    if (status !== "typing" || isAFK) {
+      if (afkTimeoutRef.current) {
+        clearTimeout(afkTimeoutRef.current);
+        afkTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    // Set a timeout to mark as AFK after 3 seconds
+    afkTimeoutRef.current = setTimeout(() => {
+      setIsAFK(true);
+    }, 3000);
+
+    return () => {
+      if (afkTimeoutRef.current) {
+        clearTimeout(afkTimeoutRef.current);
+        afkTimeoutRef.current = null;
+      }
+    };
+  }, [status, typed, isAFK]); // Re-trigger when typed changes (user is typing)
 
   // Scroll text
   useEffect(() => {
@@ -107,6 +134,9 @@ export default function TypingTest() {
     const newValue = e.target.value;
     const oldLength = typed.length;
     const newLength = newValue.length;
+
+    // Update last typing time for AFK detection
+    lastTypingTimeRef.current = Date.now();
 
     // Start typing
     if (status === "waiting" && newLength > 0) {
@@ -167,6 +197,8 @@ export default function TypingTest() {
     setStatus("waiting");
     setStartTime(null);
     setTime(0);
+    setPausedTime(0);
+    setIsAFK(false);
     setIsFocused(false);
     if (textRef.current) {
       textRef.current.style.transform = "translateX(0)";
@@ -180,6 +212,8 @@ export default function TypingTest() {
     setStatus("waiting");
     setStartTime(null);
     setTime(0);
+    setPausedTime(0);
+    setIsAFK(false);
     setIsFocused(false);
     if (textRef.current) {
       textRef.current.style.transform = "translateX(0)";
@@ -187,9 +221,21 @@ export default function TypingTest() {
     inputRef.current?.focus();
   };
 
-  const handleClick = () => {
-    setIsFocused(true);
+  const resumeFromAFK = () => {
+    const afkDuration = Date.now() - lastTypingTimeRef.current;
+    setPausedTime(prev => prev + afkDuration);
+    setIsAFK(false);
+    lastTypingTimeRef.current = Date.now();
     inputRef.current?.focus();
+  };
+
+  const handleClick = () => {
+    if (isAFK) {
+      resumeFromAFK();
+    } else {
+      setIsFocused(true);
+      inputRef.current?.focus();
+    }
   };
 
   const handleBlur = () => {
@@ -316,6 +362,23 @@ export default function TypingTest() {
               <span className="text-sub text-lg tracking-wide">
                 click to start typing
               </span>
+            </div>
+          )}
+
+          {/* AFK overlay */}
+          {isAFK && status === "typing" && (
+            <div
+              onClick={resumeFromAFK}
+              className="absolute inset-0 flex items-center justify-center backdrop-blur-[3px] bg-bg/60 cursor-pointer z-10 animate-in fade-in duration-300"
+            >
+              <div className="text-center space-y-3">
+                <div className="text-main text-2xl font-semibold tracking-wide">
+                  Paused
+                </div>
+                <div className="text-sub text-lg tracking-wide">
+                  click anywhere to continue typing
+                </div>
+              </div>
             </div>
           )}
         </div>
