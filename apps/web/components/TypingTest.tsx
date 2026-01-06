@@ -174,6 +174,19 @@ export default function TypingTest() {
     inputRef.current?.focus();
   };
 
+  const retry = () => {
+    // Keep the same text but reset everything else
+    setTyped("");
+    setStatus("waiting");
+    setStartTime(null);
+    setTime(0);
+    setIsFocused(false);
+    if (textRef.current) {
+      textRef.current.style.transform = "translateX(0)";
+    }
+    inputRef.current?.focus();
+  };
+
   const handleClick = () => {
     setIsFocused(true);
     inputRef.current?.focus();
@@ -360,11 +373,17 @@ export default function TypingTest() {
             </div>
           </div>
 
-          {/* Action Button */}
-          <div className="pt-8">
+          {/* Action Buttons */}
+          <div className="pt-4 flex justify-center gap-4">
+            <button
+              onClick={retry}
+              className="px-12 py-4 bg-sub/10 text-main border-2 border-main/30 font-semibold text-lg tracking-wide rounded-xl hover:bg-sub/20 hover:border-main/50 hover:scale-105 active:scale-95 transition-all duration-200"
+            >
+              Retry Same
+            </button>
             <button
               onClick={restart}
-              className="px-12 py-4 bg-main text-bg font-semibold text-lg tracking-wide rounded-sm hover:opacity-90 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg shadow-main/20"
+              className="px-12 py-4 bg-main text-bg font-semibold text-lg tracking-wide rounded-xl hover:opacity-90 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg shadow-main/20"
             >
               Try Again
             </button>
@@ -372,10 +391,18 @@ export default function TypingTest() {
         </div>
       )}
 
-      {/* Hint */}
+      {/* Hint and Retry */}
       {status !== "finished" && (
-        <div className="text-center text-sub/50 text-sm tracking-wide">
-          press <span className="text-main">tab</span> to restart
+        <div className="flex flex-col items-center gap-4">
+          <button
+            onClick={retry}
+            className="px-8 py-3 bg-sub/10 text-main border border-main/20 font-medium tracking-wide rounded-lg hover:bg-sub/20 hover:border-main/40 active:scale-95 transition-all duration-200"
+          >
+            Retry Same Paragraph
+          </button>
+          <div className="text-center text-sub/50 text-sm tracking-wide">
+            press <span className="text-main">tab</span> to restart with new paragraph
+          </div>
         </div>
       )}
     </div>
