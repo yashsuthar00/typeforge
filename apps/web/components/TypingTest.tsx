@@ -42,6 +42,34 @@ export default function TypingTest() {
   const wpm = time > 0 ? Math.round((correctCount / 5) / (time / 60)) : 0;
   const accuracy = typed.length > 0 ? Math.round((correctCount / typed.length) * 100) : 100;
 
+  // Throttled display for WPM to avoid jittery updates in the UI
+  const [displayWpm, setDisplayWpm] = useState<number>(0);
+  const wpmRef = useRef<number>(wpm);
+
+  // keep ref up to date with the latest real wpm
+  useEffect(() => {
+    wpmRef.current = wpm;
+  }, [wpm]);
+
+  // Update displayed WPM at a slower interval while typing; set immediately when not typing
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+
+    if (status === "typing") {
+      // update displayed WPM every 500ms
+      interval = setInterval(() => {
+        setDisplayWpm(Math.round(wpmRef.current));
+      }, 500);
+    } else {
+      // when not typing (waiting or finished), show the current WPM immediately
+      setDisplayWpm(wpm);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [status, wpm]);
+
   // Find the start of current word - O(1) using lastIndexOf instead of loop
   const getWordBoundary = useCallback((position: number): number => {
     if (position === 0) return 0;
@@ -194,7 +222,7 @@ export default function TypingTest() {
       <div className="flex items-center justify-center gap-24">
         <div className="text-center">
           <div className="text-7xl font-medium text-main tabular-nums tracking-tight">
-            {wpm}
+            {displayWpm}
           </div>
           <div className="text-sub text-sm mt-3 uppercase tracking-widest">
             wpm
@@ -282,49 +310,65 @@ export default function TypingTest() {
 
       {/* Results */}
       {status === "finished" && (
-        <div className="text-center space-y-12 pt-8">
-          <div className="space-y-3">
-            <div className="text-9xl font-medium text-main tabular-nums tracking-tight">
-              {wpm}
+        <div className="text-center space-y-16 pt-8 pb-4">
+          {/* Main WPM Result */}
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="text-[10rem] font-bold text-main tabular-nums tracking-tighter leading-none">
+                {displayWpm}
+              </div>
+              <div className="text-sub text-xl tracking-wider uppercase font-semibold">
+                words per minute
+              </div>
             </div>
-            <div className="text-sub text-lg tracking-wide">
-              words per minute
-            </div>
+            <div className="h-px w-32 mx-auto bg-main/20"></div>
           </div>
 
-          <div className="flex justify-center gap-20 text-sub">
-            <div>
-              <span className="text-text text-3xl tabular-nums">
+          {/* Detailed Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+            <div className="space-y-2 p-6 rounded-xl bg-sub/5 border border-sub/10 hover:border-sub/20 transition-colors">
+              <div className="text-4xl font-bold text-text tabular-nums">
                 {accuracy}%
-              </span>
-              <span className="ml-3 tracking-wide">accuracy</span>
+              </div>
+              <div className="text-sub text-sm tracking-wider uppercase font-medium">
+                accuracy
+              </div>
             </div>
-            <div>
-              <span className="text-text text-3xl tabular-nums">
+            <div className="space-y-2 p-6 rounded-xl bg-sub/5 border border-sub/10 hover:border-sub/20 transition-colors">
+              <div className="text-4xl font-bold text-text tabular-nums">
                 {Math.round(time)}s
-              </span>
-              <span className="ml-3 tracking-wide">time</span>
+              </div>
+              <div className="text-sub text-sm tracking-wider uppercase font-medium">
+                time
+              </div>
             </div>
-            <div>
-              <span className="text-correct text-3xl tabular-nums">
+            <div className="space-y-2 p-6 rounded-xl bg-correct/10 border border-correct/20 hover:border-correct/30 transition-colors">
+              <div className="text-4xl font-bold text-correct tabular-nums">
                 {correctCount}
-              </span>
-              <span className="ml-3 tracking-wide">correct</span>
+              </div>
+              <div className="text-sub text-sm tracking-wider uppercase font-medium">
+                correct
+              </div>
             </div>
-            <div>
-              <span className="text-error text-3xl tabular-nums">
+            <div className="space-y-2 p-6 rounded-xl bg-error/10 border border-error/20 hover:border-error/30 transition-colors">
+              <div className="text-4xl font-bold text-error tabular-nums">
                 {errorCount}
-              </span>
-              <span className="ml-3 tracking-wide">errors</span>
+              </div>
+              <div className="text-sub text-sm tracking-wider uppercase font-medium">
+                errors
+              </div>
             </div>
           </div>
 
-          <button
-            onClick={restart}
-            className="px-10 py-4 bg-main text-bg font-medium tracking-wide rounded-lg hover:opacity-90 transition-opacity"
-          >
-            try again
-          </button>
+          {/* Action Button */}
+          <div className="pt-8">
+            <button
+              onClick={restart}
+              className="px-12 py-4 bg-main text-bg font-semibold text-lg tracking-wide rounded-sm hover:opacity-90 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg shadow-main/20"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       )}
 
