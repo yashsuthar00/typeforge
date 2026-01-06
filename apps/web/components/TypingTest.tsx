@@ -46,6 +46,13 @@ export default function TypingTest() {
   const wpm = time > 0 ? Math.round((correctCount / 5) / (time / 60)) : 0;
   const accuracy = typed.length > 0 ? Math.round((correctCount / typed.length) * 100) : 100;
 
+  // Format time as MM:SS
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   // Throttled display for WPM to avoid jittery updates in the UI
   const [displayWpm, setDisplayWpm] = useState<number>(0);
   const wpmRef = useRef<number>(wpm);
@@ -260,7 +267,7 @@ export default function TypingTest() {
             <div className="text-sub text-xs sm:text-sm mt-2 sm:mt-3 uppercase tracking-widest">acc</div>
           </div>
           <div className="text-center">
-            <div className="text-5xl sm:text-6xl md:text-7xl font-medium text-sub tabular-nums tracking-tight">0s</div>
+            <div className="text-5xl sm:text-6xl md:text-7xl font-medium text-sub tabular-nums tracking-tight">00:00</div>
             <div className="text-sub text-xs sm:text-sm mt-2 sm:mt-3 uppercase tracking-widest">time</div>
           </div>
         </div>
@@ -297,7 +304,7 @@ export default function TypingTest() {
         </div>
         <div className="text-center">
           <div className="text-5xl sm:text-6xl md:text-7xl font-medium text-sub tabular-nums tracking-tight">
-            {Math.floor(time)}s
+            {formatTime(time)}
           </div>
           <div className="text-sub text-xs sm:text-sm mt-2 sm:mt-3 uppercase tracking-widest">
             time
@@ -412,7 +419,7 @@ export default function TypingTest() {
             </div>
             <div className="space-y-2 p-4 sm:p-5 md:p-6 rounded-xl bg-sub/5 border border-sub/10 hover:border-sub/20 transition-colors">
               <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-text tabular-nums">
-                {Math.round(time)}s
+                {formatTime(time)}
               </div>
               <div className="text-sub text-xs sm:text-sm tracking-wider uppercase font-medium">
                 time
