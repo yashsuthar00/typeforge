@@ -249,24 +249,24 @@ export default function TypingTest() {
   // Show loading state until client-side text is loaded
   if (!isLoaded) {
     return (
-      <div className="space-y-16">
-        <div className="flex items-center justify-center gap-24">
+      <div className="space-y-8 sm:space-y-12 md:space-y-16 px-4 sm:px-6">
+        <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-12 md:gap-16 lg:gap-24">
           <div className="text-center">
-            <div className="text-7xl font-medium text-main tabular-nums tracking-tight">0</div>
-            <div className="text-sub text-sm mt-3 uppercase tracking-widest">wpm</div>
+            <div className="text-5xl sm:text-6xl md:text-7xl font-medium text-main tabular-nums tracking-tight">0</div>
+            <div className="text-sub text-xs sm:text-sm mt-2 sm:mt-3 uppercase tracking-widest">wpm</div>
           </div>
           <div className="text-center">
-            <div className="text-7xl font-medium text-sub tabular-nums tracking-tight">100%</div>
-            <div className="text-sub text-sm mt-3 uppercase tracking-widest">acc</div>
+            <div className="text-5xl sm:text-6xl md:text-7xl font-medium text-sub tabular-nums tracking-tight">100%</div>
+            <div className="text-sub text-xs sm:text-sm mt-2 sm:mt-3 uppercase tracking-widest">acc</div>
           </div>
           <div className="text-center">
-            <div className="text-7xl font-medium text-sub tabular-nums tracking-tight">0s</div>
-            <div className="text-sub text-sm mt-3 uppercase tracking-widest">time</div>
+            <div className="text-5xl sm:text-6xl md:text-7xl font-medium text-sub tabular-nums tracking-tight">0s</div>
+            <div className="text-sub text-xs sm:text-sm mt-2 sm:mt-3 uppercase tracking-widest">time</div>
           </div>
         </div>
-        <div className="relative py-12">
+        <div className="relative py-8 sm:py-10 md:py-12">
           <div className="overflow-hidden">
-            <div className="whitespace-nowrap text-4xl leading-loose font-mono text-sub/40">
+            <div className="whitespace-nowrap text-2xl sm:text-3xl md:text-4xl leading-loose font-mono text-sub/40">
               loading...
             </div>
           </div>
@@ -276,30 +276,30 @@ export default function TypingTest() {
   }
 
   return (
-    <div className="space-y-16">
+    <div className="space-y-8 sm:space-y-12 md:space-y-16 px-4 sm:px-6">
       {/* Stats */}
-      <div className="flex items-center justify-center gap-24">
+      <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-12 md:gap-16 lg:gap-24">
         <div className="text-center">
-          <div className="text-7xl font-medium text-main tabular-nums tracking-tight">
+          <div className="text-5xl sm:text-6xl md:text-7xl font-medium text-main tabular-nums tracking-tight">
             {displayWpm}
           </div>
-          <div className="text-sub text-sm mt-3 uppercase tracking-widest">
+          <div className="text-sub text-xs sm:text-sm mt-2 sm:mt-3 uppercase tracking-widest">
             wpm
           </div>
         </div>
         <div className="text-center">
-          <div className="text-7xl font-medium text-sub tabular-nums tracking-tight">
+          <div className="text-5xl sm:text-6xl md:text-7xl font-medium text-sub tabular-nums tracking-tight">
             {accuracy}%
           </div>
-          <div className="text-sub text-sm mt-3 uppercase tracking-widest">
+          <div className="text-sub text-xs sm:text-sm mt-2 sm:mt-3 uppercase tracking-widest">
             acc
           </div>
         </div>
         <div className="text-center">
-          <div className="text-7xl font-medium text-sub tabular-nums tracking-tight">
+          <div className="text-5xl sm:text-6xl md:text-7xl font-medium text-sub tabular-nums tracking-tight">
             {Math.floor(time)}s
           </div>
-          <div className="text-sub text-sm mt-3 uppercase tracking-widest">
+          <div className="text-sub text-xs sm:text-sm mt-2 sm:mt-3 uppercase tracking-widest">
             time
           </div>
         </div>
@@ -330,7 +330,7 @@ export default function TypingTest() {
           <div className="overflow-hidden">
             <div
               ref={textRef}
-              className="whitespace-nowrap text-4xl leading-loose transition-transform duration-150 ease-out font-mono"
+              className="whitespace-nowrap text-2xl sm:text-3xl md:text-4xl leading-loose transition-transform duration-150 ease-out font-mono"
               style={{ letterSpacing: "0.025em" }}
             >
               {text.split("").map((char, i) => {
@@ -359,7 +359,7 @@ export default function TypingTest() {
               onClick={handleClick}
               className="absolute inset-0 flex items-center justify-center backdrop-blur-[2px] bg-bg/50 cursor-pointer"
             >
-              <span className="text-sub text-lg tracking-wide">
+              <span className="text-sub text-base sm:text-lg tracking-wide px-4">
                 click to start typing
               </span>
             </div>
@@ -371,11 +371,11 @@ export default function TypingTest() {
               onClick={resumeFromAFK}
               className="absolute inset-0 flex items-center justify-center backdrop-blur-[3px] bg-bg/60 cursor-pointer z-10 animate-in fade-in duration-300"
             >
-              <div className="text-center space-y-3">
-                <div className="text-main text-2xl font-semibold tracking-wide">
+              <div className="text-center space-y-2 sm:space-y-3 px-4">
+                <div className="text-main text-xl sm:text-2xl font-semibold tracking-wide">
                   Paused
                 </div>
-                <div className="text-sub text-lg tracking-wide">
+                <div className="text-sub text-base sm:text-lg tracking-wide">
                   click anywhere to continue typing
                 </div>
               </div>
@@ -386,67 +386,67 @@ export default function TypingTest() {
 
       {/* Results */}
       {status === "finished" && (
-        <div className="text-center space-y-16 pt-8 pb-4">
+        <div className="text-center space-y-8 sm:space-y-12 md:space-y-16 pt-8 pb-4">
           {/* Main WPM Result */}
           <div className="space-y-4">
             <div className="space-y-2">
-              <div className="text-[10rem] font-bold text-main tabular-nums tracking-tighter leading-none">
+              <div className="text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-bold text-main tabular-nums tracking-tighter leading-none">
                 {displayWpm}
               </div>
-              <div className="text-sub text-xl tracking-wider uppercase font-semibold">
+              <div className="text-sub text-base sm:text-lg md:text-xl tracking-wider uppercase font-semibold">
                 words per minute
               </div>
             </div>
-            <div className="h-px w-32 mx-auto bg-main/20"></div>
+            <div className="h-px w-24 sm:w-32 mx-auto bg-main/20"></div>
           </div>
 
           {/* Detailed Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-            <div className="space-y-2 p-6 rounded-xl bg-sub/5 border border-sub/10 hover:border-sub/20 transition-colors">
-              <div className="text-4xl font-bold text-text tabular-nums">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 lg:gap-8 max-w-4xl mx-auto px-2">
+            <div className="space-y-2 p-4 sm:p-5 md:p-6 rounded-xl bg-sub/5 border border-sub/10 hover:border-sub/20 transition-colors">
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-text tabular-nums">
                 {accuracy}%
               </div>
-              <div className="text-sub text-sm tracking-wider uppercase font-medium">
+              <div className="text-sub text-xs sm:text-sm tracking-wider uppercase font-medium">
                 accuracy
               </div>
             </div>
-            <div className="space-y-2 p-6 rounded-xl bg-sub/5 border border-sub/10 hover:border-sub/20 transition-colors">
-              <div className="text-4xl font-bold text-text tabular-nums">
+            <div className="space-y-2 p-4 sm:p-5 md:p-6 rounded-xl bg-sub/5 border border-sub/10 hover:border-sub/20 transition-colors">
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-text tabular-nums">
                 {Math.round(time)}s
               </div>
-              <div className="text-sub text-sm tracking-wider uppercase font-medium">
+              <div className="text-sub text-xs sm:text-sm tracking-wider uppercase font-medium">
                 time
               </div>
             </div>
-            <div className="space-y-2 p-6 rounded-xl bg-correct/10 border border-correct/20 hover:border-correct/30 transition-colors">
-              <div className="text-4xl font-bold text-correct tabular-nums">
+            <div className="space-y-2 p-4 sm:p-5 md:p-6 rounded-xl bg-correct/10 border border-correct/20 hover:border-correct/30 transition-colors">
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-correct tabular-nums">
                 {correctCount}
               </div>
-              <div className="text-sub text-sm tracking-wider uppercase font-medium">
+              <div className="text-sub text-xs sm:text-sm tracking-wider uppercase font-medium">
                 correct
               </div>
             </div>
-            <div className="space-y-2 p-6 rounded-xl bg-error/10 border border-error/20 hover:border-error/30 transition-colors">
-              <div className="text-4xl font-bold text-error tabular-nums">
+            <div className="space-y-2 p-4 sm:p-5 md:p-6 rounded-xl bg-error/10 border border-error/20 hover:border-error/30 transition-colors">
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-error tabular-nums">
                 {errorCount}
               </div>
-              <div className="text-sub text-sm tracking-wider uppercase font-medium">
+              <div className="text-sub text-xs sm:text-sm tracking-wider uppercase font-medium">
                 errors
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="pt-4 flex justify-center gap-4">
+          <div className="pt-4 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 px-4">
             <button
               onClick={retry}
-              className="px-12 py-4 bg-sub/10 text-main border-2 border-main/30 font-semibold text-lg tracking-wide rounded-xl hover:bg-sub/20 hover:border-main/50 hover:scale-105 active:scale-95 transition-all duration-200"
+              className="px-8 sm:px-10 md:px-12 py-3 sm:py-4 bg-sub/10 text-main border-2 border-main/30 font-semibold text-base sm:text-lg tracking-wide rounded-xl hover:bg-sub/20 hover:border-main/50 hover:scale-105 active:scale-95 transition-all duration-200"
             >
               Retry Same
             </button>
             <button
               onClick={restart}
-              className="px-12 py-4 bg-main text-bg font-semibold text-lg tracking-wide rounded-xl hover:opacity-90 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg shadow-main/20"
+              className="px-8 sm:px-10 md:px-12 py-3 sm:py-4 bg-main text-bg font-semibold text-base sm:text-lg tracking-wide rounded-xl hover:opacity-90 hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg shadow-main/20"
             >
               Try Again
             </button>
@@ -456,14 +456,14 @@ export default function TypingTest() {
 
       {/* Hint and Retry */}
       {status !== "finished" && (
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-3 sm:gap-4 px-4">
           <button
             onClick={retry}
-            className="px-8 py-3 bg-sub/10 text-main border border-main/20 font-medium tracking-wide rounded-lg hover:bg-sub/20 hover:border-main/40 active:scale-95 transition-all duration-200"
+            className="px-6 sm:px-8 py-2.5 sm:py-3 bg-sub/10 text-main border border-main/20 font-medium text-sm sm:text-base tracking-wide rounded-lg hover:bg-sub/20 hover:border-main/40 active:scale-95 transition-all duration-200"
           >
             Retry Same Paragraph
           </button>
-          <div className="text-center text-sub/50 text-sm tracking-wide">
+          <div className="text-center text-sub/50 text-xs sm:text-sm tracking-wide">
             press <span className="text-main">tab</span> to restart with new paragraph
           </div>
         </div>
